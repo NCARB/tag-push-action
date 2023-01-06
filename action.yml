@@ -1,0 +1,40 @@
+name: 'Tag and Push to Docker Action'
+description: 'Tags a docker ecr image and pushes it. The docker image must have been built and tagged using the local-image tag before this action.'
+inputs: 
+  repository:
+    description: >-
+      The ecr repository name where the the image to tag will be pushed
+    required: true
+  registry:
+    description: >-
+      The ecr registry name where the the image to tag will be pushed
+    required: true
+  local-image:
+    description: >-
+      The name of the docker image that has been built locally
+    required: true       
+outputs:
+  build-id:
+    description: "tag image build id"
+    value: ${{ steps.tag-push-build-info.outputs.build-id }}
+runs:
+  using: "composite"
+  steps:
+    - uses: ncarb/build-info-action@v1
+      id: tag-push-build-info
+      # https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-retag.html
+    - name: tag and push images
+      shell: bash
+      env:
+        ECR_REGISTRY: ${{ inputs.registry }}
+        ECR_REPOSITORY: ${{ inputs.repository }}
+        IMAGE_TAG: ${{ steps.tag-push-build-info.outputs.build-id }}
+        VERSION_TAG: ${{ steps.tag-push-build-info.outputs.version }}
+        LOCAL_IMAGE: ${{ inputs.local-image }}
+      run: |
+        echo pushing $LOCAL_IMAGE as $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker tag $LOCAL_IMAGE $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker tag $LOCAL_IMAGE $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$VERSION_TAG
+        echo pushed $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG   
